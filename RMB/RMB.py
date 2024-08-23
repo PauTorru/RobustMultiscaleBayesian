@@ -12,6 +12,17 @@ import sunsal
 
 
 def python_neighbour_graph(row,col,I_resol):
+    """
+    Builds the neighbours array for the RMB algorithm. 
+
+    Parameters:
+    ------------
+    row, col: int
+        number of rows and columns in your image.
+    I_resol: list
+        List of the multiscales to be used, they have to be odd and listed in increasing value.
+
+    """
     #returns neighbours matrix: each row refers to pixel i ( .ravel() order), neighbours ordered according to I_resol
     # neighbours corresponding to I_resol[i] are out[:,:I_resol[i]**2]
     #only odd values. only ordered from smaller to larger.
@@ -48,6 +59,15 @@ def python_neighbour_graph(row,col,I_resol):
 
 
 def Duplicate_Borders(Y,pad):
+    """
+    Adds borders to the Y for the RMB calculation.
+    Parameters:
+    -----------
+    Y: array
+        Dataset to be padded
+    pad: int
+        withd of the margin added at each side.
+    """
     Y2 = np.pad(Y,pad)[:,:]#,pad:-pad]
 
   
@@ -61,6 +81,21 @@ def Duplicate_Borders(Y,pad):
 
 
 def generate_rscales(data,Gm,I_resol):
+    """
+    Generates multiscale dataset through FFT convolutions (see generate_rescales_faster(), which is recomended in general)
+
+    Parameters:
+    -----------
+
+    data: array
+        Spectrum image
+    Gm : array
+        G matrix generated with espm. It contains the endmembers to be estimated in the columns.
+    I_resol: list
+        List of the multiscales to be used, they have to be odd and listed in increasing value.
+
+
+    """
     x,y,e = data.shape
     e,n = Gm.shape
     rd = len(I_resol)
@@ -74,6 +109,21 @@ def generate_rscales(data,Gm,I_resol):
     return out
 
 def generate_rscales_faster(data,Gm,I_resol):
+    """
+    Generates multiscale dataset through opencv 2Dfilter convultion. It is generally faster unles the spectral dimension is very large.
+
+    Parameters:
+    -----------
+
+    data: array
+        Spectrum image
+    Gm : array
+        G matrix generated with espm. It contains the endmembers to be estimated in the columns.
+    I_resol: list
+        List of the multiscales to be used, they have to be odd and listed in increasing value.
+
+
+    """
     x,y,e = data.shape
     e,n = Gm.shape
     rd = len(I_resol)
@@ -97,6 +147,24 @@ def generate_rscales_faster(data,Gm,I_resol):
 
 
 def create_I_up_bar(multiscale_map,neighbours,I_resol):
+    """
+    Generates I_up_Bar matrix in the RMB algorithm
+
+    Parameters:
+    -----------
+
+    multiscale_map: array
+        output of generate_rscales
+
+    neighbours: array
+
+    I_resol: list
+        List of the multiscales to be used, they have to be odd and listed in increasing value.
+
+
+
+
+    """
 
     rows, cols, convs = multiscale_map.shape
     in_mat = multiscale_map.reshape((rows*cols,convs))
@@ -119,6 +187,37 @@ def create_I_up_bar(multiscale_map,neighbours,I_resol):
 
 
 def robust_median_bayesian(multiscale_map,neighbours,I_resol,iter_max=2,eps=1e-12,convergence_thershold=1e-3):
+    """
+    Generates I_up_Bar matrix in the RMB algorithm
+
+    Parameters:
+    -----------
+
+    multiscale_map: array
+        Multiscales maps of a given endmember.
+
+    neighbours: array
+
+    I_resol: list
+        List of the multiscales to be used, they have to be odd and listed in increasing value.
+
+    iter_max: int
+        Number of iterations of the RMB algorithm
+
+    eps: float
+        Small value greater than zero. Used to avoid NaNs.
+
+    convergence_thershold: float
+        RMB algorithm is stop if relative chages in the maps are below this thershold
+
+    Ouputs:
+    -------
+
+    Maps: array
+        Abundance map of the given endmember
+    Uncertainty: array
+        Associated uncertainty of the calculated abundance map.
+    """
     
     rows, cols, convs = multiscale_map.shape
     rc,nn = neighbours.shape
@@ -194,7 +293,30 @@ def robust_median_bayesian(multiscale_map,neighbours,I_resol,iter_max=2,eps=1e-1
         iters+=1
     return M.reshape((rows,cols)),Eps_I.reshape((rows,cols))
 
-def get_BMS_maps(s,I_resol,**kwargs):
+def get_RMB_maps(s,I_resol,**kwargs):
+    """
+    Obtain RMB optimized abundace maps of the endmembers in the espm G matrix
+
+    Parameters:
+    -----------
+
+    s: EDS_spim
+        Specturm image to analyze
+
+    I_resol: list
+        List of the multiscales to be used, they have to be odd and listed in increasing value.
+
+    kwargs are passed to the robust median bayesian algorithm
+
+    Ouputs:
+    -------
+
+    Maps: array
+        RMB optimized abundance maps of all endmembers.
+
+    Uncertainty: array
+        Associated uncertainties of the calculated abundance maps.
+    """
     G = s.G()
     print("Generating multiscale")
     rscales = generate_rscales_faster(s.data,G,I_resol)
@@ -215,7 +337,27 @@ def get_BMS_maps(s,I_resol,**kwargs):
     
     return np.dstack(maps),np.dstack(eps)
     
-def build_BMS_model(s,maps,G):
+def build_RMB_model(s,maps,G):
+    """
+    Rebuilds the spectral model of the calculated abundace maps and endmembers.
+
+    Parameters:
+    -----------
+    s: EDS_spim
+        Orgininal dataset 
+
+    maps: array
+        abundances from get_RMB_maps
+
+    G: array
+        Endmember matrix
+
+    Outputs:
+    --------
+    EDS_spim
+        Model of the dataset.
+    """
+
     r,c,els = maps.shape
     e,els = G.shape
     d = (G@maps.reshape(-1,els).T).reshape((e,r,c))
