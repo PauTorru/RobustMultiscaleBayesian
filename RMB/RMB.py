@@ -317,7 +317,10 @@ def get_RMB_maps(s,I_resol,**kwargs):
     Uncertainty: array
         Associated uncertainties of the calculated abundance maps.
     """
-    G = s.G()
+    if callable(s.G):
+        G = s.G()
+    else:
+        G=s.G
     print("Generating multiscale")
     rscales = generate_rscales_faster(s.data,G,I_resol)
     print("Done")
