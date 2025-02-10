@@ -289,9 +289,10 @@ def robust_median_bayesian(multiscale_map,neighbours,I_resol,iter_max=2,eps=1e-1
         if iters>1:
             cost = abs(Mtot[iters-1]-Mtot[iters-2]).sum()/abs(Mtot[iters-2]).sum()
             if cost<convergence_thershold:
-                return M.reshape((rows,cols)),Eps_I.reshape((rows,cols))
+                return M.reshape((rows,cols)),np.sqrt(Eps_I.reshape((rows,cols)))
         iters+=1
     return M.reshape((rows,cols)),Eps_I.reshape((rows,cols))
+
 
 def get_RMB_maps(s,I_resol,**kwargs):
     """
@@ -314,9 +315,10 @@ def get_RMB_maps(s,I_resol,**kwargs):
     Maps: array
         RMB optimized abundance maps of all endmembers.
 
-    Uncertainty: array
-        Associated uncertainties of the calculated abundance maps.
+    Variance: array
+        Associated variances of the calculated abundance maps.
     """
+    s.build_G()
     if callable(s.G):
         G = s.G()
     else:
@@ -338,8 +340,9 @@ def get_RMB_maps(s,I_resol,**kwargs):
         maps.append(m)
         eps.append(e)
     
-    return np.dstack(maps),np.dstack(eps)
-    
+    return np.dstack(maps),np.sqrt(np.dstack(eps))
+
+
 def build_RMB_model(s,maps,G):
     """
     Rebuilds the spectral model of the calculated abundace maps and endmembers.
@@ -369,4 +372,44 @@ def build_RMB_model(s,maps,G):
     out.data = d.transpose([1,2,0])
     
     return out
+
+
+
+def atomic_percentage_and_uncertainty_from_RMB_maps(maps,variance):
+    """Returns atomic percentage maps and associated error maps from the RMB output. 
+    Select the maps and variances of the desired elements
+
+    Parameters
+    ----------
+
+    maps: np.array
+        Maps of the desired elements. shape is (size x, size y, n_elements)
+
+    variance: np.array
+        associated variances to the maps. Same shape
+
+    Returns:
+    --------
+
+    quantification: np.array
+        In %.
+
+    quantification error: np.array
+        standard error of the quantification in %.
+
+    """
+    #print("Remember: Don't include background estimations into the maps")
+
+    quant = 100*maps/maps.sum(-1)[:,:,np.newaxis]
+
+    error = 2*np.sqrt(variance)
+    q_sum = maps.sum(-1)
+
+    q_sum_error = np.sqrt((error**2).sum(-1))
+
+    q_error = quant*np.sqrt((error/maps)**2+((q_sum_error/q_sum)**2)[:,:,np.newaxis])
+    return quant,q_error
+
+
+    
     
