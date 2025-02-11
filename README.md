@@ -26,5 +26,5 @@ The following are needed:
 CITING
 ------
 
-If you use this library, please cite on of the following papers::
+If you use this library, please cite on of the following :
 
