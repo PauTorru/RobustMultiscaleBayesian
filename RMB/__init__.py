@@ -1,2 +1,2 @@
-from RMB.RMB import *
+from RMB import *
 
