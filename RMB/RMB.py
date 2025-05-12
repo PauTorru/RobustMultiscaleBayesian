@@ -294,7 +294,7 @@ def robust_median_bayesian(multiscale_map,neighbours,I_resol,iter_max=2,eps=1e-1
     return M.reshape((rows,cols)),Eps_I.reshape((rows,cols))
 
 
-def get_RMB_maps(s,I_resol,**kwargs):
+def get_RMB_maps(s,I_resol,G=None,**kwargs):
     """
     Obtain RMB optimized abundace maps of the endmembers in the espm G matrix
 
@@ -307,6 +307,10 @@ def get_RMB_maps(s,I_resol,**kwargs):
     I_resol: list
         List of the multiscales to be used, they have to be odd and listed in increasing value.
 
+    G : Array (E,n_elements)
+        Array with the spectra of the endmembers to be estimated.
+        If None it is taken from s
+
     kwargs are passed to the robust median bayesian algorithm
 
     Ouputs:
@@ -318,11 +322,15 @@ def get_RMB_maps(s,I_resol,**kwargs):
     Variance: array
         Associated variances of the calculated abundance maps.
     """
-    s.build_G()
-    if callable(s.G):
-        G = s.G()
-    else:
-        G=s.G
+    if G is None:
+        s.build_G()
+        if callable(s.G):
+            G = s.G()
+        else:
+            G=s.G
+
+    assert s.data.dtype =="float" 
+
     print("Generating multiscale")
     rscales = generate_rscales_faster(s.data,G,I_resol)
     print("Done")
